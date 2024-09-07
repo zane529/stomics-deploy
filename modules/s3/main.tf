@@ -74,7 +74,7 @@ data "aws_iam_policy_document" "assume_role_policy" {
 # 创建 S3 访问角色
 ################################################################################
 resource "aws_iam_role" "s3_access_role" {
-  depends_on = [ aws_iam_policy_document.assume_role_policy ]
+  depends_on = [ data.aws_iam_policy_document.assume_role_policy ]
   name = "${var.project_name}-eks-s3-access-role"
   # 允许 EKS Pod Identity Agent 承担此角色的信任关系
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
