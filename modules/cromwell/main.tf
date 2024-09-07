@@ -224,36 +224,36 @@ resource "kubernetes_service" "cromwell" {
   }
 }
 
-resource "kubernetes_ingress_v1" "cromwell" {
+# resource "kubernetes_ingress_v1" "cromwell" {
 
-  metadata {
-    name = "cromwell"
-    annotations = {
-      "kubernetes.io/ingress.class"                = "alb"
-      "alb.ingress.kubernetes.io/scheme"           = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type"      = "ip"
-      "alb.ingress.kubernetes.io/healthcheck-path" = "/engine/v1/version"
-    }
-  }
+#   metadata {
+#     name = "cromwell"
+#     annotations = {
+#       "kubernetes.io/ingress.class"                = "alb"
+#       "alb.ingress.kubernetes.io/scheme"           = "internet-facing"
+#       "alb.ingress.kubernetes.io/target-type"      = "ip"
+#       "alb.ingress.kubernetes.io/healthcheck-path" = "/engine/v1/version"
+#     }
+#   }
 
-  spec {
-    rule {
-      http {
-        path {
-          path = "/*"
-          backend {
-            service {
-              name = kubernetes_service.cromwell.metadata.0.name
-              port {
-                number = 80
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
+#   spec {
+#     rule {
+#       http {
+#         path {
+#           path = "/*"
+#           backend {
+#             service {
+#               name = kubernetes_service.cromwell.metadata.0.name
+#               port {
+#                 number = 80
+#               }
+#             }
+#           }
+#         }
+#       }
+#     }
+#   }
+# }
 
 ################################################################################
 # 当执行 terraform destroy 销毁时先删除 AWS 上的 ALB 资源
