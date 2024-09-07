@@ -218,5 +218,4 @@ provider "kubectl" {
     command     = "aws"
   }
   apply_retry_count = 3
-  wait_for_rollout  = true
 }
