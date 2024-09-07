@@ -6,7 +6,7 @@ locals {
 }
 
 ################################################################################
-# 创建 EFS 安全组
+# 创建 s3 桶
 ################################################################################
 resource "random_id" "suffix" {
   byte_length = 6
@@ -14,6 +14,7 @@ resource "random_id" "suffix" {
 
 resource "aws_s3_bucket" "s3" {
   bucket = "${var.project_name}-${var.aws_region}-${random_id.suffix.hex}"
+  force_destroy = true
 }
 
 ################################################################################
