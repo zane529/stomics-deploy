@@ -42,6 +42,9 @@ output "ecr_repository_url" {
 output "eks_iam_openid_connect_provider_url" {
   value = aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer
 }
+
+data "aws_caller_identity" "current" {}
+
 # 输出 OIDC 的 ARN
 output "eks_iam_openid_connect_provider_arn" {
   value = replace(aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer, "https://", "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/")
