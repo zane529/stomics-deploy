@@ -5,7 +5,6 @@ module "aws" {
 }
 
 module "vpc" {
-  depends_on = [ module.aws ]
   source       = "../../modules/vpc"
   project_name = var.project_name
   region       = var.aws_region
@@ -13,7 +12,6 @@ module "vpc" {
 }
 
 module "eks" {
-  depends_on = [ module.vpc ]
   source     = "../../modules/eks"
   aws_region = var.aws_region
   project_name = var.project_name
@@ -27,7 +25,6 @@ module "eks" {
 }
 
 module "efs" {
-  depends_on = [module.eks, module.vpc]
   source     = "../../modules/efs"
   cluster_name = module.eks.cluster_name
   cluster_endpoint = module.eks.cluster_endpoint
@@ -39,7 +36,6 @@ module "efs" {
 }
 
 module "s3" {
-  depends_on = [module.eks, module.vpc]
   source     = "../../modules/s3"
   aws_region = var.aws_region
   cluster_name = module.eks.cluster_name
@@ -53,7 +49,6 @@ module "s3" {
 }
 
 module "cromwell" {
-  depends_on = [module.eks, module.vpc]
   source     = "../../modules/cromwell"
   aws_region = var.aws_region
   ecr_repository_url = module.eks.ecr_repository_url

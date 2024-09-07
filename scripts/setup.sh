@@ -33,6 +33,12 @@ echo "export AWS_REGION=${AWS_REGION}" | tee -a ~/.bash_profile
 aws configure set default.region ${AWS_REGION}
 aws configure get region
 
+echo "Setup Terraform"
+sudo dnf install -y yum-utils
+sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+sudo dnf install -y terraform
+terraform version
+
 echo "Setup Terraform cache"
 if [ ! -f $HOME/.terraform.d/plugin-cache ]; then
   mkdir -p $HOME/.terraform.d/plugin-cache
