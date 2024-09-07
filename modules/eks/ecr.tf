@@ -20,7 +20,7 @@ resource "null_resource" "delete_ecr_images" {
     when    = destroy
     command = <<EOF
       # 获取所有镜像标签
-      IMAGES_TO_DELETE=$$(aws ecr list-images --repository-name ${self.triggers.ecr_repository_name} --query 'imageIds[*]' --output json)
+      IMAGES_TO_DELETE=$(aws ecr list-images --repository-name ${self.triggers.ecr_repository_name} --query 'imageIds[*]' --output json)
       
       # 如果有镜像，则删除它们
       if [ "$${IMAGES_TO_DELETE}" != "[]" ]; then
