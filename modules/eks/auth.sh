@@ -1,7 +1,8 @@
 echo "kubectl"
 kubectl version
 
-rm -f ~/.kube/config
+rm -rf ~/.kube
+rm -rf ~/.docker
 aws eks update-kubeconfig --name $1
 
 # Update helm

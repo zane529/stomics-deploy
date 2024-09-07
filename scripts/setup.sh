@@ -69,5 +69,10 @@ if [ ! $(which helm 2>/dev/null) ]; then
   sudo mv linux-amd64/helm /usr/local/bin/helm >/dev/null
   rm -rf helm-v3.11.3-linux-amd64.tar.gz linux-amd64
 fi
-echo "add helm repos"
+
+# Update helm
+# Add eks-charts 仓库
 helm repo add eks https://aws.github.io/eks-charts
+# Add Karpenter 仓库
+helm repo add karpenter https://charts.karpenter.sh
+helm repo update
