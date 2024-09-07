@@ -10,7 +10,9 @@ terraform {
   }
 }
 
-
+################################################################################
+# Kubernetes provider 的配置,包括 host、token 和证书信息
+################################################################################
 data "aws_eks_cluster_auth" "this" {
   name = var.cluster_name
 }
@@ -20,10 +22,3 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(var.cluster_ca_certificate_data)
   token                  = data.aws_eks_cluster_auth.this.token
 }
-
-# provider "kubectl" {
-#   host                   = var.eks_cluster.endpoint
-#   cluster_ca_certificate = base64decode(var.eks_cluster.certificate_authority[0].data)
-#   token                  = data.aws_eks_cluster_auth.this.token
-#   load_config_file       = false
-# }
