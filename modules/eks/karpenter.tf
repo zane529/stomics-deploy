@@ -71,6 +71,9 @@ resource "helm_release" "karpenter" {
 ################################################################################
 # 创建 Karpenter 默认的 Provisioner
 ################################################################################
+
+
+
 resource "kubectl_manifest" "karpenter_provisioner" {
   yaml_body = <<-YAML
   apiVersion: karpenter.sh/v1alpha5
