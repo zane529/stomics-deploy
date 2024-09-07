@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: s3-test-pod
+spec:
+  serviceAccountName: cromwell-sa
+  containers:
+  - name: s3-test
+    image: 763309664766.dkr.ecr.us-west-2.amazonaws.com/stomics-dev-ecr-5da5669cbd80/cromwell:latest
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      aws s3 ls
+      echo "S3 bucket list complete. Pod will sleep for 1 hour."
+      sleep 3600
