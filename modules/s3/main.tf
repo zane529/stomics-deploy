@@ -20,7 +20,7 @@ resource "aws_s3_bucket" "s3" {
 # 配置 S3 访问权限
 ################################################################################
 resource "aws_iam_policy" "s3_access" {
-  name = "${var.project_name}_s3_access"
+  name = "${var.cluster_name}_s3_access"
   path = "/"
   policy = jsonencode({
     Version = "2012-10-17"
@@ -75,7 +75,7 @@ data "aws_iam_policy_document" "assume_role_policy" {
 ################################################################################
 resource "aws_iam_role" "s3_access_role" {
   depends_on = [ data.aws_iam_policy_document.assume_role_policy ]
-  name = "${var.project_name}-eks-s3-access-role"
+  name = "${var.cluster_name}-eks-s3-access-role"
   # 允许 EKS Pod Identity Agent 承担此角色的信任关系
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }

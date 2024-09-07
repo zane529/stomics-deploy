@@ -4,18 +4,15 @@ terraform {
   required_providers {
     aws = {
       source = "hashicorp/aws"
-      #  Lock version to prevent unexpected problems
-      version = "5.64.0"
+      on = "5.64.0"
+    }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.14.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "2.32.0"
     }
   }
-}
-
-data "aws_eks_cluster_auth" "this" {
-  name = var.cluster_name
-}
-
-provider "kubernetes" {
-  host                   = var.cluster_endpoint
-  cluster_ca_certificate = base64decode(var.cluster_ca_certificate_data)
-  token                  = data.aws_eks_cluster_auth.this.token
 }
