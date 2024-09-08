@@ -7,11 +7,12 @@ This project implements a one-click deployment solution for Amazon EKS (Elastic 
 - Utilizes Terraform for Infrastructure as Code (IaC), enabling reproducible and version-controlled deployments
 - Sets up a fully configured Amazon EKS cluster
 - Integrates Karpenter for efficient auto-scaling of Kubernetes nodes
-- Configures Amazon EFS for persistent storage solutions
-- Incorporates Amazon S3 for object storage needs
-- Includes Cromwell setup for workflow management in bioinformatics pipelines
+- Configures Amazon EFS for persistent storage solutions with EFS-PVC
+- Incorporates Amazon S3 for object storage needs with S3-PVC
+- Includes Cromwell 8.5 setup, integrated with EKS for workflow management in bioinformatics pipelines
 - Implements necessary IAM roles and policies for secure operations
 - Creates a custom VPC tailored for the EKS environment
+- Provides a "Hello World" WDL example to demonstrate Cromwell functionality
 
 ## Solution Architecture
 
@@ -87,6 +88,7 @@ kubectl get pods
 * `terraform destroy`       Destroy the Terraform-managed infrastructure
 * `kubectl get nodes`       List all nodes in the EKS cluster
 * `kubectl get pods --all-namespaces`  List all pods across all namespaces
+* `kubectl get pvc`         List all Persistent Volume Claims (including S3 and EFS)
 
 ## Security
 
