@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: JOB_NAME
+spec:
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      serviceAccountName: cromwell-sa
+      containers:
+        - name: cromwell
+          image: C_IMAGE
+          command:
+            - /bin/bash
+            - -ce
+            - |
+              EXECUTION_DIR/script
+              exit_code=$?
+              echo "Script exited with code $exit_code"
+              exit $exit_code
+          resources:
+            requests:
+              cpu: CPUS
+              memory: MEMORYS
+            limits:
+              cpu: CPUS
+              memory: MEMORYS
+          volumeMounts:
+            - name: efs-ps
+              mountPath: /efs-data
+            - name: s3-ps
+              mountPath: /inputs
+      volumes:
+        - name: efs-ps
+          persistentVolumeClaim:
+            claimName: efs-pvc
+        - name: s3-ps
+          persistentVolumeClaim:
+            claimName: s3-pvc
+      restartPolicy: Never
+  backoffLimit: 1
