@@ -76,3 +76,11 @@ helm repo add eks https://aws.github.io/eks-charts
 # Add Karpenter 仓库
 helm repo add karpenter https://charts.karpenter.sh
 helm repo update
+
+# Install Docker
+sudo dnf update -y
+sudo dnf install -y docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker $USER
+docker --version

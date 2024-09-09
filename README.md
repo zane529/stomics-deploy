@@ -7,6 +7,7 @@ This project implements a one-click deployment solution for Amazon EKS (Elastic 
 - Utilizes Terraform for Infrastructure as Code (IaC), enabling reproducible and version-controlled deployments
 - Sets up a fully configured Amazon EKS cluster
 - Integrates Karpenter for efficient auto-scaling of Kubernetes nodes
+- Deploys AWS Load Balancer Controller for managing Elastic Load Balancers for Kubernetes services
 - Configures Amazon EFS for persistent storage solutions with EFS-PVC
 - Incorporates Amazon S3 for object storage needs with S3-PVC
 - Includes Cromwell 8.5 setup, integrated with EKS for workflow management in bioinformatics pipelines
@@ -21,7 +22,7 @@ This project implements a one-click deployment solution for Amazon EKS (Elastic 
 ## Prerequisites
 
 - AWS account with appropriate permissions
-- A EC2 with AL2023.
+- A EC2 with AL2023 and install Docker.
 - Terraform (version 1.9.x or later)
 - AWS CLI configured with your credentials (version 2.15.x or later)
 - kubectl installed for Kubernetes cluster management
