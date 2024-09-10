@@ -73,6 +73,15 @@ tail -f terraform_apply.log
 kubectl get pods
 ```
 
+8. Test Cromwell Demo:
+
+```
+kubectl exec -it $(kubectl get pods -o name | grep '^pod/cromwell' | head -n 1 | cut -d/ -f2) -- /bin/bash
+# In the pod env, run the command
+cd /efs-data
+java -Dconfig.file=/app/cromwell-k8s.conf -jar /app/cromwell.jar run /app/simple-hello.wdl
+```
+
 ## Documentation
 * [Amazon EKS Documentation](https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html)
 * [Terraform Documentation](https://www.terraform.io/docs)
