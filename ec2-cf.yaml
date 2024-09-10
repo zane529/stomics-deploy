@@ -46,6 +46,10 @@ Resources:
           systemctl enable docker
           usermod -aG docker $USER
           usermod -aG docker ec2-user
+      Tags:
+        - Key: Name
+          Value: "eks-builder"
+
 
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
