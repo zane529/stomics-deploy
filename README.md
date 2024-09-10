@@ -82,6 +82,15 @@ cd /efs-data
 java -Dconfig.file=/app/cromwell-k8s.conf -jar /app/cromwell.jar run /app/simple-hello.wdl
 ```
 
+9. Destroy the ENV:
+
+```
+kubectl exec -it $(kubectl get pods -o name | grep '^pod/cromwell' | head -n 1 | cut -d/ -f2) -- /bin/bash
+# In the pod env, run the command
+cd ~/stomics-deploy/environments/dev/
+nohup terraform destroy -auto-approve > terraform_destroy.log 2>&1 &
+```
+
 ## Documentation
 * [Amazon EKS Documentation](https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html)
 * [Terraform Documentation](https://www.terraform.io/docs)
