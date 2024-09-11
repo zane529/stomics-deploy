@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "aws_profile_name" {
   description = "aws profile name"
   type        = string
-  default     = "glb"
+  default     = "default"
 }
 
 variable "project_name" {
