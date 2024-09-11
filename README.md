@@ -85,8 +85,6 @@ java -Dconfig.file=/app/cromwell-k8s.conf -jar /app/cromwell.jar run /app/simple
 9. Destroy the ENV:
 
 ```
-kubectl exec -it $(kubectl get pods -o name | grep '^pod/cromwell' | head -n 1 | cut -d/ -f2) -- /bin/bash
-# In the pod env, run the command
 cd ~/stomics-deploy/environments/dev/
 nohup terraform destroy -auto-approve > terraform_destroy.log 2>&1 &
 ```
