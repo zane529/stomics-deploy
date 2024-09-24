@@ -39,6 +39,17 @@ resource "aws_iam_role_policy_attachment" "eks_service_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
   role       = aws_iam_role.eks_cluster_role.name
 }
+# resource "aws_iam_role_policy_attachment" "esk_ebs_csidriver_policy" {
+#   depends_on = [ aws_iam_role.eks_cluster_role ]
+#   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+#   role       = aws_iam_role.eks_cluster_role.name
+# }
+resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+  depends_on = [ aws_iam_role.eks_cluster_role ]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks_cluster_role.name
+}
+
 
 ################################################################################
 # 创建 EKS 集群
@@ -123,16 +134,50 @@ resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
   role       = aws_iam_role.eks_node_group_role.name
 }
 
-resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+resource "aws_iam_role_policy_attachment" "eks_ng_cni_policy" {
   depends_on = [ aws_iam_role.eks_node_group_role ]
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
   role       = aws_iam_role.eks_node_group_role.name
 }
 
-resource "aws_iam_role_policy_attachment" "eks_container_registry_policy" {
+resource "aws_iam_role_policy_attachment" "eks_ng_container_registry_policy" {
   depends_on = [ aws_iam_role.eks_node_group_role ]
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
   role       = aws_iam_role.eks_node_group_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_ng_ebs_csidriver_policy" {
+  depends_on = [ aws_iam_role.eks_node_group_role ]
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.eks_node_group_role.name
+}
+
+################################################################################
+# 创建启动模板以禁用 IMDSv2
+################################################################################
+resource "aws_launch_template" "eks_node_launch_template" {
+  name = "${local.cluster_name}-node-launch-template"
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size = var.node_group_ebs_size
+      volume_type = "gp3"  # 或者您想要的其他类型
+    }
+  }
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "optional"
+    http_put_response_hop_limit = 1
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      "Name" = "${local.cluster_name}-ng"
+    }
+  }
 }
 
 ################################################################################
@@ -145,7 +190,7 @@ resource "aws_eks_node_group" "eks_node_group" {
   subnet_ids      = var.private_subnet_ids
 
   # 这里设置为 80GB，你可以根据需要调整
-  disk_size = var.node_group_ebs_size
+  #disk_size = var.node_group_ebs_size
 
   scaling_config {
     desired_size = var.node_group_desired_size
@@ -155,6 +200,12 @@ resource "aws_eks_node_group" "eks_node_group" {
 
   instance_types = var.node_instance_types
 
+  # 禁用 IMDSv2
+  launch_template {
+    name    = aws_launch_template.eks_node_launch_template.name
+    version = aws_launch_template.eks_node_launch_template.latest_version
+  }
+
   # 添加这个块来设置标签
   tags = {
     "Name" = "${local.cluster_name}-worker-node"
@@ -162,8 +213,9 @@ resource "aws_eks_node_group" "eks_node_group" {
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_worker_node_policy,
-    aws_iam_role_policy_attachment.eks_cni_policy,
-    aws_iam_role_policy_attachment.eks_container_registry_policy,
+    aws_iam_role_policy_attachment.eks_ng_cni_policy,
+    aws_iam_role_policy_attachment.eks_ng_container_registry_policy,
+    aws_iam_role_policy_attachment.eks_ng_ebs_csidriver_policy,
     aws_eks_cluster.eks_cluster
   ]
 }
