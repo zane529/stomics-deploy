@@ -5,6 +5,7 @@
 # 创建 Prometheus Server, prometheus-server 作为服务名称，这是 Prometheus Helm Chart 默认创建的服务名称。
 ################################################################################
 resource "helm_release" "prometheus" {
+  timeout = 600
   name       = "prometheus"
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "prometheus"
