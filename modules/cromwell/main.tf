@@ -6,6 +6,16 @@ locals {
   cromwell_image_url = "${var.ecr_repository_url}:latest"
 }
 
+resource "local_file" "docker_script" {
+  content = templatefile("${path.module}/docker_build_and_push.sh", {
+    aws_region         = var.aws_region
+    ecr_repository_url = var.ecr_repository_url
+    cromwell_image_url = local.cromwell_image_url
+    dockerfile_path    = "${path.module}/dockerfile"
+  })
+  filename = "${path.module}/tmp_docker_script.sh"
+}
+
 ################################################################################
 # 构建 Cromwell 镜像并且推送到 Amazon ECR
 ################################################################################
@@ -15,14 +25,16 @@ resource "null_resource" "docker_build_and_push" {
     cluster_name = var.cluster_name
     dockerfile_hash = filemd5("${path.module}/dockerfile/Dockerfile")
     start_sh_hash   = filemd5("${path.module}/dockerfile/start.sh")
+    script_content  = local_file.docker_script.content
   }
 
   provisioner "local-exec" {
-    command = <<EOF
-      aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.ecr_repository_url}
-      docker build -t ${local.cromwell_image_url} ${path.module}/dockerfile
-      docker push ${local.cromwell_image_url}
-    EOF
+    # command = <<EOF
+    #   aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.ecr_repository_url}
+    #   docker build -t ${local.cromwell_image_url} ${path.module}/dockerfile
+    #   docker push ${local.cromwell_image_url}
+    # EOF
+    command = "bash ${local_file.docker_script.filename}"
   }
 }
 
