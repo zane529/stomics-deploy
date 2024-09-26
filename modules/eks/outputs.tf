@@ -28,14 +28,9 @@ output "node_iam_role_name" {
   value = aws_iam_role.eks_node_group_role.name
 }
 
-# 输出 EKS 集群的 Karpenter role
-output "karpenter_iam_role_name" {
-  value = module.karpenter_irsa.iam_role_name
-}
-
-# 输出 ECR 的 URL
-output "ecr_repository_url" {
-  value = aws_ecr_repository.ecr.repository_url
+# 输出 EKS 集群的 Node group 的 role
+output "node_iam_role_arn" {
+  value = aws_iam_role.eks_node_group_role.arn
 }
 
 # 输出 OIDC 的 URL
@@ -43,9 +38,19 @@ output "eks_iam_openid_connect_provider_url" {
   value = aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer
 }
 
-data "aws_caller_identity" "current" {}
+# 输出 EKS 集群的 Karpenter role
+# output "karpenter_iam_role_name" {
+#   value = module.karpenter_irsa.iam_role_name
+# }
 
-# 输出 OIDC 的 ARN
-output "eks_iam_openid_connect_provider_arn" {
-  value = replace(aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer, "https://", "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/")
-}
+# # 输出 ECR 的 URL
+# output "ecr_repository_url" {
+#   value = aws_ecr_repository.ecr.repository_url
+# }
+
+# data "aws_caller_identity" "current" {}
+
+# # 输出 OIDC 的 ARN
+# output "eks_iam_openid_connect_provider_arn" {
+#   value = replace(aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer, "https://", "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/")
+# }

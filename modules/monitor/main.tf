@@ -40,9 +40,6 @@ resource "helm_release" "prometheus" {
     name  = "pushgateway.enabled"
     value = "false"
   }
-
-  depends_on = [ aws_eks_node_group.eks_node_group, helm_release.lb ]
-
 }
 
 ################################################################################

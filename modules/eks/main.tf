@@ -2,15 +2,11 @@ resource "random_id" "suffix" {
   byte_length = 6
 }
 
-locals {
-  cluster_name = "${var.project_name}-eks-${random_id.suffix.hex}"
-}
-
 ################################################################################
 # 创建 EKS 集群角色
 ################################################################################
 resource "aws_iam_role" "eks_cluster_role" {
-  name = "${local.cluster_name}-role"
+  name = "${var.eks_name}-role-${random_id.suffix.hex}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -39,11 +35,6 @@ resource "aws_iam_role_policy_attachment" "eks_service_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
   role       = aws_iam_role.eks_cluster_role.name
 }
-# resource "aws_iam_role_policy_attachment" "esk_ebs_csidriver_policy" {
-#   depends_on = [ aws_iam_role.eks_cluster_role ]
-#   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-#   role       = aws_iam_role.eks_cluster_role.name
-# }
 resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
   depends_on = [ aws_iam_role.eks_cluster_role ]
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
@@ -63,7 +54,7 @@ resource "aws_eks_cluster" "eks_cluster" {
     "scheduler",
   ]
 
-  name = local.cluster_name
+  name = var.eks_name
 
   role_arn = aws_iam_role.eks_cluster_role.arn
   tags     = {}
@@ -91,7 +82,7 @@ resource "null_resource" "gen_cluster_auth" {
   triggers = {
     cluster_name = aws_eks_cluster.eks_cluster.name
   }
-  depends_on = [aws_eks_cluster.eks_cluster]
+  # depends_on = [aws_eks_cluster.eks_cluster]
   provisioner "local-exec" {
     on_failure  = fail
     when        = create
@@ -110,7 +101,7 @@ resource "null_resource" "gen_cluster_auth" {
 resource "aws_iam_role" "eks_node_group_role" {
   depends_on = [aws_eks_cluster.eks_cluster]
 
-  name = "${local.cluster_name}-node-role"
+  name = "${var.eks_name}-node-role"
 
   assume_role_policy = jsonencode({
     Statement = [{
@@ -155,7 +146,9 @@ resource "aws_iam_role_policy_attachment" "eks_ng_ebs_csidriver_policy" {
 # 创建启动模板以禁用 IMDSv2
 ################################################################################
 resource "aws_launch_template" "eks_node_launch_template" {
-  name = "${local.cluster_name}-node-launch-template"
+  depends_on = [aws_eks_cluster.eks_cluster]
+
+  name = "${var.eks_name}-node-launch-template"
 
   block_device_mappings {
     device_name = "/dev/xvda"
@@ -174,7 +167,7 @@ resource "aws_launch_template" "eks_node_launch_template" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      "Name" = "${local.cluster_name}-ng"
+      "Name" = "${var.eks_name}-ng"
     }
   }
 }
@@ -187,9 +180,6 @@ resource "aws_eks_node_group" "eks_node_group" {
   node_group_name = "ng"
   node_role_arn   = aws_iam_role.eks_node_group_role.arn
   subnet_ids      = var.private_subnet_ids
-
-  # 这里设置为 80GB，你可以根据需要调整
-  #disk_size = var.node_group_ebs_size
 
   scaling_config {
     desired_size = var.node_group_desired_size
@@ -207,7 +197,7 @@ resource "aws_eks_node_group" "eks_node_group" {
 
   # 添加这个块来设置标签
   tags = {
-    "Name" = "${local.cluster_name}-worker-node"
+    "Name" = "${var.eks_name}-worker-node"
   }
 
   depends_on = [
@@ -215,7 +205,8 @@ resource "aws_eks_node_group" "eks_node_group" {
     aws_iam_role_policy_attachment.eks_ng_cni_policy,
     aws_iam_role_policy_attachment.eks_ng_container_registry_policy,
     aws_iam_role_policy_attachment.eks_ng_ebs_csidriver_policy,
-    aws_eks_cluster.eks_cluster
+    aws_eks_cluster.eks_cluster,
+    aws_launch_template.eks_node_launch_template
   ]
 }
 
@@ -232,41 +223,4 @@ resource "aws_iam_openid_connect_provider" "eks_oidc" {
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.eks_oidc.certificates[0].sha1_fingerprint]
   url             = aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer
-}
-
-################################################################################
-# 初始化 EKS 集群的 providers
-################################################################################
-data "aws_eks_cluster_auth" "this" {
-  name = aws_eks_cluster.eks_cluster.name
-}
-
-provider "helm" {
-  kubernetes {
-    host                   = aws_eks_cluster.eks_cluster.endpoint
-    cluster_ca_certificate = base64decode(aws_eks_cluster.eks_cluster.certificate_authority[0].data)
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.eks_cluster.name]
-      command     = "aws"
-    }
-  }
-}
-
-provider "kubernetes" {
-  host                   = aws_eks_cluster.eks_cluster.endpoint
-  cluster_ca_certificate = base64decode(aws_eks_cluster.eks_cluster.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.this.token
-}
-
-provider "kubectl" {
-  host                   = aws_eks_cluster.eks_cluster.endpoint
-  cluster_ca_certificate = base64decode(aws_eks_cluster.eks_cluster.certificate_authority[0].data)
-  load_config_file       = false
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.eks_cluster.name]
-    command     = "aws"
-  }
-  apply_retry_count = 3
 }

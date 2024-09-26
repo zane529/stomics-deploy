@@ -1,20 +1,5 @@
-variable "cluster_name" {
+variable "eks_name" {
   description = "The EKS Cluster's name"
-  type        = string
-}
-
-variable "cluster_endpoint" {
-  description = "The EKS Cluster's enpoint"
-  type        = string
-}
-
-variable "cluster_ca_certificate_data" {
-  description = "The EKS cluster_ca_certificate_data"
-  type        = string
-}
-
-variable "project_name" {
-  description = "Name of the EKS cluster"
   type        = string
 }
 

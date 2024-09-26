@@ -3,7 +3,7 @@
 ################################################################################
 resource "aws_security_group" "efs" {
 
-  name        = "${var.cluster_name}-efs-security-group"
+  name        = "${var.eks_name}-efs-security-group"
   description = "Security group for EFS"
   vpc_id      = var.vpc_id
 
@@ -25,7 +25,7 @@ resource "aws_security_group" "efs" {
   }
 
   tags = {
-    Name = "${var.cluster_name}-efs-security-group"
+    Name = "${var.eks_name}-efs-security-group"
   }
 }
 
@@ -33,9 +33,9 @@ resource "aws_security_group" "efs" {
 # 创建 EFS 文件系统
 ################################################################################
 resource "aws_efs_file_system" "efs" {
-  creation_token = "${var.cluster_name}-efs"
+  creation_token = "${var.eks_name}-efs"
   tags = {
-    Name = "${var.cluster_name}-efs"
+    Name = "${var.eks_name}-efs"
   }
 }
 

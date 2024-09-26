@@ -8,12 +8,9 @@ locals {
 ################################################################################
 # 创建 s3 桶
 ################################################################################
-resource "random_id" "suffix" {
-  byte_length = 6
-}
 
 resource "aws_s3_bucket" "s3" {
-  bucket = "${var.project_name}-${var.aws_region}-${random_id.suffix.hex}"
+  bucket = "${var.eks_name}-${var.aws_region}"
   force_destroy = true
 }
 
@@ -21,7 +18,8 @@ resource "aws_s3_bucket" "s3" {
 # 配置 S3 访问权限
 ################################################################################
 resource "aws_iam_policy" "s3_access" {
-  name = "${var.cluster_name}_s3_access"
+  depends_on = [ aws_s3_bucket.s3 ]
+  name = "${var.eks_name}_s3_access"
   path = "/"
   policy = jsonencode({
     Version = "2012-10-17"
@@ -51,34 +49,28 @@ resource "aws_iam_policy" "s3_access" {
 }
 
 ################################################################################
-# 创建 assume_role_policy
-################################################################################
-data "aws_iam_policy_document" "assume_role_policy" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-    effect  = "Allow"
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(var.eks_iam_openid_connect_provider_url, "https://", "")}:sub"
-      values   = ["system:serviceaccount:${var.k8s_namespace}:${local.s3_access_sa}"]
-    }
-
-    principals {
-      identifiers = [var.eks_iam_openid_connect_provider_arn]
-      type        = "Federated"
-    }
-  }
-}
-
-################################################################################
 # 创建 S3 访问角色
 ################################################################################
 resource "aws_iam_role" "s3_access_role" {
-  depends_on = [ data.aws_iam_policy_document.assume_role_policy ]
-  name = "${var.cluster_name}-eks-s3-access-role"
-  # 允许 EKS Pod Identity Agent 承担此角色的信任关系
-  assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
+  name = "${var.eks_name}-eks-s3-access-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = "arn:aws:iam::${var.aws_account_id}:oidc-provider/${replace(var.eks_cluster_oidc_issuer, "https://", "")}"
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${replace(var.eks_cluster_oidc_issuer, "https://", "")}:sub": "system:serviceaccount:${var.k8s_namespace}:${local.s3_access_sa}"
+          }
+        }
+      },
+    ]
+  })
 }
 
 ################################################################################
@@ -118,6 +110,7 @@ resource "kubernetes_service_account" "s3_access_sa" {
 # 创建 创建 Kubernetes PersistentVolume
 ################################################################################
 resource "kubernetes_persistent_volume" "s3" {
+  depends_on = [ aws_s3_bucket.s3 ]
   metadata {
     name = "s3-pv"
   }
@@ -149,6 +142,8 @@ resource "kubernetes_persistent_volume" "s3" {
 # 创建 Kubernetes PersistentVolumeClaim
 ################################################################################
 resource "kubernetes_persistent_volume_claim" "s3" {
+
+  depends_on = [ kubernetes_persistent_volume.s3 ]
 
   metadata {
     name = "s3-pvc"

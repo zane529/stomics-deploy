@@ -4,16 +4,14 @@
 
 module "lb_role" {
 
-  depends_on = [ aws_eks_node_group.eks_node_group, aws_iam_openid_connect_provider.eks_oidc ]
-
   source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
 
-  role_name                              = "${aws_eks_cluster.eks_cluster.name}-lb"
+  role_name                              = "${var.eks_name}-lb"
   attach_load_balancer_controller_policy = true
 
   oidc_providers = {
     main = {
-      provider_arn               = aws_iam_openid_connect_provider.eks_oidc.arn
+      provider_arn               = replace(var.eks_cluster_oidc_issuer, "https://", "arn:aws:iam::${var.aws_account_id}:oidc-provider/")
       namespace_service_accounts = ["kube-system:aws-load-balancer-controller"]
     }
   }
@@ -25,9 +23,7 @@ module "lb_role" {
 
 resource "kubernetes_service_account" "service-account" {
 
-  depends_on = [
-    aws_eks_node_group.eks_node_group
-  ]
+  depends_on = [ module.lb_role ]
     
   metadata {
     name      = "aws-load-balancer-controller"
@@ -52,9 +48,7 @@ resource "helm_release" "lb" {
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   namespace  = "kube-system"
-  depends_on = [
-    kubernetes_service_account.service-account, aws_eks_node_group.eks_node_group
-  ]
+  depends_on = [ kubernetes_service_account.service-account ]
 
   set {
     name  = "region"
@@ -83,6 +77,6 @@ resource "helm_release" "lb" {
 
   set {
     name  = "clusterName"
-    value = aws_eks_cluster.eks_cluster.name
+    value = var.eks_name
   }
 }

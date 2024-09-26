@@ -10,7 +10,7 @@ variable "aws_profile_name" {
   default     = "default"
 }
 
-variable "project_name" {
+variable "eks_name" {
   description = "Name of the project"
   type        = string
   default     = "stomics-dev"

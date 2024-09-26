@@ -5,21 +5,20 @@
 # 为 Karpenter 创建 IAM 角色
 ################################################################################
 module "karpenter_irsa" {
-  depends_on = [ aws_iam_openid_connect_provider.eks_oidc, aws_iam_role.eks_node_group_role, aws_eks_node_group.eks_node_group ]
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
 
-  role_name                          = "${aws_eks_cluster.eks_cluster.name}-karpenter-controller"
+  role_name                          = "${var.eks_name}-karpenter-controller"
   attach_karpenter_controller_policy = true
 
   karpenter_tag_key               = "karpenter.sh/discovery"
-  karpenter_controller_cluster_id = aws_eks_cluster.eks_cluster.name
+  karpenter_controller_cluster_id = var.eks_name
   karpenter_controller_node_iam_role_arns = [
-    aws_iam_role.eks_node_group_role.arn
+    var.eks_node_group_role_arn
   ]
 
   oidc_providers = {
     ex = {
-      provider_arn               = aws_iam_openid_connect_provider.eks_oidc.arn
+      provider_arn               = replace(var.eks_cluster_oidc_issuer, "https://", "arn:aws:iam::${var.aws_account_id}:oidc-provider/")
       namespace_service_accounts = ["karpenter:karpenter"]
     }
   }
@@ -29,16 +28,15 @@ module "karpenter_irsa" {
 # 创建 Karpenter 所需的 EC2 Spot 服务相关角色
 ################################################################################
 resource "aws_iam_instance_profile" "karpenter" {
-  depends_on = [ aws_iam_role.eks_node_group_role, aws_eks_node_group.eks_node_group ]
-  name = "KarpenterNodeInstanceProfile-${aws_eks_cluster.eks_cluster.name}"
-  role = aws_iam_role.eks_node_group_role.name
+  name = "KarpenterNodeInstanceProfile-${var.eks_name}"
+  role = var.eks_node_group_role_name
 }
 
 ################################################################################
 # 创建 Karpenter
 ################################################################################
 resource "helm_release" "karpenter" {
-  depends_on = [ aws_eks_node_group.eks_node_group ]
+  depends_on = [ aws_iam_instance_profile.karpenter ]
   namespace        = "karpenter"
   create_namespace = true
 
@@ -54,12 +52,12 @@ resource "helm_release" "karpenter" {
 
   set {
     name  = "clusterName"
-    value = aws_eks_cluster.eks_cluster.name
+    value = var.eks_name
   }
 
   set {
     name  = "clusterEndpoint"
-    value = aws_eks_cluster.eks_cluster.endpoint
+    value = var.eks_endpoint
   }
 
   set {
@@ -72,6 +70,14 @@ resource "helm_release" "karpenter" {
 # 创建 Karpenter 默认的 Provisioner
 ################################################################################
 
+terraform {
+  required_providers {
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.14.0"
+    }
+  }
+}
 
 resource "kubectl_manifest" "karpenter_provisioner" {
   yaml_body = <<-YAML
@@ -98,14 +104,12 @@ resource "kubectl_manifest" "karpenter_provisioner" {
         cpu: 1000
     provider:
       subnetSelector:
-        Name: "${var.project_name}-private*"
+        Name: "${var.eks_name}-private*"
       securityGroupSelector:
-        "aws:eks:cluster-name": ${aws_eks_cluster.eks_cluster.name}
+        "aws:eks:cluster-name": ${var.eks_name}
       tags:
-        "karpenter.sh/discovery": ${aws_eks_cluster.eks_cluster.name}
+        "karpenter.sh/discovery": ${var.eks_name}
     ttlSecondsAfterEmpty: 30
   YAML
-  depends_on = [
-    helm_release.karpenter, aws_eks_node_group.eks_node_group
-  ]
+  depends_on = [ helm_release.karpenter ]
 }

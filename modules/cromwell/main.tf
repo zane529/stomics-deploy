@@ -1,19 +1,41 @@
 ################################################################################
+# Amazon ECR
+################################################################################
+resource "aws_ecr_repository" "ecr" {
+  name                 = "${var.eks_name}-ecr/cromwell"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "null_resource" "delete_ecr_images" {
+  triggers = {
+    ecr_repository_name = aws_ecr_repository.ecr.name
+  }
+
+  # 这个 provisioner 只在资源被销毁时执行
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<EOF
+      # 获取所有镜像标签
+      IMAGES_TO_DELETE=$(aws ecr list-images --repository-name ${self.triggers.ecr_repository_name} --query 'imageIds[*]' --output json)
+      
+      # 如果有镜像，则删除它们
+      if [ "$${IMAGES_TO_DELETE}" != "[]" ]; then
+        aws ecr batch-delete-image --repository-name ${self.triggers.ecr_repository_name} --image-ids "$${IMAGES_TO_DELETE}"
+      fi
+    EOF
+  }
+}
+
+################################################################################
 # 本地变量
 ################################################################################
 locals {
   cromwell_sa = "cromwell-sa"
-  cromwell_image_url = "${var.ecr_repository_url}:latest"
-}
-
-resource "local_file" "docker_script" {
-  content = templatefile("${path.module}/docker_build_and_push.sh", {
-    aws_region         = var.aws_region
-    ecr_repository_url = var.ecr_repository_url
-    cromwell_image_url = local.cromwell_image_url
-    dockerfile_path    = "${path.module}/dockerfile"
-  })
-  filename = "${path.module}/tmp_docker_script.sh"
+  cromwell_image_url = "${aws_ecr_repository.ecr.repository_url}:latest"
 }
 
 ################################################################################
@@ -21,41 +43,25 @@ resource "local_file" "docker_script" {
 ################################################################################
 resource "null_resource" "docker_build_and_push" {
 
-  triggers = {
-    cluster_name = var.cluster_name
-    dockerfile_hash = filemd5("${path.module}/dockerfile/Dockerfile")
-    start_sh_hash   = filemd5("${path.module}/dockerfile/start.sh")
-    script_content  = local_file.docker_script.content
-  }
+  depends_on = [ aws_ecr_repository.ecr ]
+
+  # triggers = {
+  #   cluster_name = var.eks_name
+  #   dockerfile_hash = filemd5("${path.module}/dockerfile/Dockerfile")
+  #   start_sh_hash   = filemd5("${path.module}/dockerfile/start.sh")
+  # }
 
   provisioner "local-exec" {
-    # command = <<EOF
-    #   aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${var.ecr_repository_url}
-    #   docker build -t ${local.cromwell_image_url} ${path.module}/dockerfile
-    #   docker push ${local.cromwell_image_url}
-    # EOF
-    command = "bash ${local_file.docker_script.filename}"
-  }
-}
-
-################################################################################
-# 创建 assume_role_policy
-################################################################################
-data "aws_iam_policy_document" "cromwell_assume_role_policy" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-    effect  = "Allow"
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(var.eks_iam_openid_connect_provider_url, "https://", "")}:sub"
-      values   = ["system:serviceaccount:${var.k8s_namespace}:${local.cromwell_sa}"]
-    }
-
-    principals {
-      identifiers = [var.eks_iam_openid_connect_provider_arn]
-      type        = "Federated"
-    }
+    on_failure  = fail
+    when        = create
+    interpreter = ["/bin/bash", "-c"]
+    command = <<EOF
+      aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.ecr.repository_url}
+      docker build -t ${local.cromwell_image_url} ${path.module}/dockerfile
+      docker push ${local.cromwell_image_url}
+      echo "************************************************************************************"
+    EOF
+   
   }
 }
 
@@ -63,10 +69,25 @@ data "aws_iam_policy_document" "cromwell_assume_role_policy" {
 # 创建 Cromwell Pod 对应的 Role
 ################################################################################
 resource "aws_iam_role" "cromwell_role" {
-  depends_on = [ data.aws_iam_policy_document.cromwell_assume_role_policy ]
-  name = "${var.cluster_name}-cromwell-role"
-  # 允许 EKS Pod Identity Agent 承担此角色的信任关系
-  assume_role_policy = data.aws_iam_policy_document.cromwell_assume_role_policy.json
+  name = "${var.eks_name}-cromwell-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = "arn:aws:iam::${var.aws_account_id}:oidc-provider/${replace(var.eks_cluster_oidc_issuer, "https://", "")}"
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${replace(var.eks_cluster_oidc_issuer, "https://", "")}:sub": "system:serviceaccount:${var.k8s_namespace}:${local.cromwell_sa}"
+          }
+        }
+      },
+    ]
+  })
 }
 
 ################################################################################
@@ -167,7 +188,7 @@ resource "kubernetes_deployment" "cromwell" {
 
           env {
             name  = "CLUSTER_NAME"
-            value = var.cluster_name
+            value = var.eks_name
           }
 
           env {
