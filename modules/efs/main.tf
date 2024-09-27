@@ -97,7 +97,7 @@ resource "kubernetes_persistent_volume" "efs" {
 # 创建 Kubernetes PersistentVolumeClaim
 ################################################################################
 resource "kubernetes_persistent_volume_claim" "efs" {
-  depends_on = [ aws_efs_file_system.efs, kubernetes_storage_class.efs ]
+  depends_on = [ aws_efs_file_system.efs, kubernetes_storage_class.efs, kubernetes_persistent_volume.efs ]
   metadata {
     name = "efs-pvc"
     namespace = "default"

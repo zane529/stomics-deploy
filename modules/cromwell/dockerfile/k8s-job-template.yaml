@@ -31,6 +31,7 @@ spec:
               mountPath: /efs-data
             - name: s3-ps
               mountPath: /inputs
+      ttlSecondsAfterFinished: 3600
       volumes:
         - name: efs-ps
           persistentVolumeClaim:
