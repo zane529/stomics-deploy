@@ -102,6 +102,8 @@ resource "kubectl_manifest" "karpenter_default_provisioner" {
     limits:
       resources:
         cpu: 1000
+    labels:
+      cpu-node: "true"
     provider:
       subnetSelector:
         Name: "${var.eks_name}-private*"
@@ -134,6 +136,8 @@ resource "kubectl_manifest" "karpenter_gpu_provisioner" {
     limits:
       resources:
         gpu.amazonaws.com/gpu: 1
+    labels:
+      gpu-node: "true"
     provider:
       subnetSelector:
         Name: "${var.eks_name}-private*"
