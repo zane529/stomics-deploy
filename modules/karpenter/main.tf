@@ -79,7 +79,7 @@ terraform {
   }
 }
 
-resource "kubectl_manifest" "karpenter_provisioner" {
+resource "kubectl_manifest" "karpenter_default_provisioner" {
   yaml_body = <<-YAML
   apiVersion: karpenter.sh/v1alpha5
   kind: Provisioner
@@ -110,6 +110,38 @@ resource "kubectl_manifest" "karpenter_provisioner" {
       tags:
         "karpenter.sh/discovery": ${var.eks_name}
     ttlSecondsAfterEmpty: 30
+  YAML
+  depends_on = [ helm_release.karpenter ]
+}
+
+resource "kubectl_manifest" "karpenter_gpu_provisioner" {
+  yaml_body = <<-YAML
+  apiVersion: karpenter.sh/v1alpha5
+  kind: Provisioner
+  metadata:
+    name: "gpu-provisioner"
+  spec:
+    requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["gpu"]
+      - key: "karpenter.k8s.aws/instance-category"
+        operator: In
+        values: ["g"]
+      - key: karpenter.k8s.aws/instance-family
+        operator: In
+        values: ["g4dn"]
+    limits:
+      resources:
+        gpu.amazonaws.com/gpu: 1
+    provider:
+      subnetSelector:
+        Name: "${var.eks_name}-private*"
+      securityGroupSelector:
+        "aws:eks:cluster-name": ${var.eks_name}
+      tags:
+        "karpenter.sh/discovery": ${var.eks_name}
+      ttlSecondsAfterEmpty: 30
   YAML
   depends_on = [ helm_release.karpenter ]
 }
