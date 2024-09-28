@@ -116,6 +116,58 @@ resource "kubectl_manifest" "karpenter_default_provisioner" {
   depends_on = [ helm_release.karpenter ]
 }
 
+
+################################################################################
+# 安装 GPU Driver
+################################################################################
+resource "kubectl_manifest" "karpenter_nvidia_device_plugin" {
+  yaml_body = <<-YAML
+    apiVersion: apps/v1
+    kind: DaemonSet
+    metadata:
+      name: nvidia-device-plugin-daemonset
+      namespace: kube-system
+    spec:
+      selector:
+        matchLabels:
+          name: nvidia-device-plugin-ds
+      updateStrategy:
+        type: RollingUpdate
+      template:
+        metadata:
+          labels:
+            name: nvidia-device-plugin-ds
+        spec:
+          tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
+          priorityClassName: "system-node-critical"
+          containers:
+          - image: nvcr.io/nvidia/k8s-device-plugin:v0.14.5
+            name: nvidia-device-plugin-ctr
+            env:
+              - name: FAIL_ON_INIT_ERROR
+                value: "false"
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop: ["ALL"]
+            volumeMounts:
+            - name: device-plugin
+              mountPath: /var/lib/kubelet/device-plugins
+          volumes:
+          - name: device-plugin
+            hostPath:
+              path: /var/lib/kubelet/device-plugins
+    YAML
+  depends_on = [ helm_release.karpenter ]
+}
+
+################################################################################
+# 创建 Karpenter GPU 的 Provisioner
+################################################################################
+
 resource "kubectl_manifest" "karpenter_gpu_provisioner" {
   yaml_body = <<-YAML
   apiVersion: karpenter.sh/v1alpha5
@@ -126,16 +178,15 @@ resource "kubectl_manifest" "karpenter_gpu_provisioner" {
     requirements:
       - key: karpenter.sh/capacity-type
         operator: In
-        values: ["gpu"]
-      - key: "karpenter.k8s.aws/instance-category"
+        values: ["on-demand"]
+      - key: node.kubernetes.io/instance-type
         operator: In
-        values: ["g"]
-      - key: karpenter.k8s.aws/instance-family
-        operator: In
-        values: ["g4dn"]
+        values: ["g4dn.2xlarge", "g5.2xlarge"]
     limits:
       resources:
-        gpu.amazonaws.com/gpu: 1
+        cpu: 1000
+        memory: 4000Gi
+        nvidia.com/gpu: 100
     labels:
       gpu-node: "true"
     provider:
@@ -145,7 +196,7 @@ resource "kubectl_manifest" "karpenter_gpu_provisioner" {
         "aws:eks:cluster-name": ${var.eks_name}
       tags:
         "karpenter.sh/discovery": ${var.eks_name}
-      ttlSecondsAfterEmpty: 30
+    ttlSecondsAfterEmpty: 30
   YAML
   depends_on = [ helm_release.karpenter ]
 }
